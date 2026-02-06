@@ -298,11 +298,15 @@ class SetupDialog(ctk.CTkToplevel):
             self._client_ref.logout()
         self._auth_indicator.configure(text="● 미인증", text_color="#f38ba8")
         self._auth_status.configure(text="로그아웃됨", text_color="#a6adc8")
-        # Reset username in widget
+        # Reset widget state
         if hasattr(self._parent, '_username'):
             self._parent._username = None
-            if hasattr(self._parent, '_update_title'):
-                self._parent._title_label.configure(text=" ✦ Claude")
+        if hasattr(self._parent, '_title_label') and self._parent._title_label:
+            self._parent._title_label.configure(text=" ✦ Claude")
+        if hasattr(self._parent, '_last_data'):
+            self._parent._last_data = None
+        if hasattr(self._parent, 'update_status'):
+            self._parent.update_status("로그아웃됨 - 로그인 필요")
         # Switch to login button
         self._login_btn.destroy()
         self._login_btn = ctk.CTkButton(

@@ -276,9 +276,10 @@ class OAuthClient:
                 on_complete(False, "인증 시간 초과 또는 취소됨")
                 return
 
-            # 6. Exchange code for tokens (form-encoded per OAuth 2.0 spec)
-            payload = urlencode({
+            # 6. Exchange code for tokens
+            payload = json.dumps({
                 "code": auth_code,
+                "state": state,
                 "grant_type": "authorization_code",
                 "client_id": CLIENT_ID,
                 "redirect_uri": redirect_uri,
@@ -286,7 +287,7 @@ class OAuthClient:
             }).encode("utf-8")
 
             req = Request(TOKEN_URL, data=payload, method="POST")
-            req.add_header("Content-Type", "application/x-www-form-urlencoded")
+            req.add_header("Content-Type", "application/json")
             req.add_header("User-Agent", "claude-code/2.0.32")
 
             with urlopen(req, timeout=15) as resp:
