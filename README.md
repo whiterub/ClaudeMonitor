@@ -35,8 +35,10 @@ Claude AI 사용량을 실시간으로 보여주는 Windows 데스크톱 위젯�
 ### 방법 1: EXE 파일 (권장)
 
 1. [Releases](https://github.com/whiterub/ClaudeMonitor/releases) 페이지에서 `ClaudeMonitor.exe` 다운로드
-2. 실행 후 설정(⚙) → `Claude 로그인` 클릭
-3. 브라우저에서 Claude 계정으로 인증
+2. 실행 시 **"Windows에서 PC를 보호했습니다"** 창이 나타나면:
+   - `추가 정보` 클릭 → `실행` 버튼 클릭 (코드 서명이 없는 오픈소스 앱이라 최초 1회만 표시됩니다)
+3. 설정(⚙) → `Claude 로그인` 클릭
+4. 브라우저에서 Claude 계정으로 인증
 
 ### 방법 2: Python으로 직접 실행
 
