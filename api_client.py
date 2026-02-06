@@ -1,0 +1,182 @@
+import json
+import os
+import threading
+import time
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from typing import Optional
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
+
+
+CREDENTIALS_PATH = os.path.join(os.path.expanduser("~"), ".claude", ".credentials.json")
+TOKEN_URL = "https://console.anthropic.com/v1/oauth/token"
+USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
+CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
+
+
+@dataclass
+class UsageTier:
+    utilization: float
+    resets_at: Optional[datetime]
+
+
+@dataclass
+class UsageData:
+    five_hour: UsageTier
+    seven_day: UsageTier
+    seven_day_sonnet: UsageTier
+    fetched_at: datetime
+
+
+@dataclass
+class ApiResult:
+    success: bool
+    data: Optional[UsageData]
+    error: Optional[str]
+
+
+def _parse_tier(raw: Optional[dict]) -> UsageTier:
+    if raw is None:
+        return UsageTier(utilization=0, resets_at=None)
+    utilization = float(raw.get("utilization", 0))
+    resets_at_str = raw.get("resets_at")
+    resets_at = None
+    if resets_at_str:
+        try:
+            resets_at = datetime.fromisoformat(resets_at_str)
+        except ValueError:
+            pass
+    return UsageTier(utilization=utilization, resets_at=resets_at)
+
+
+def _parse_usage(raw: dict) -> UsageData:
+    return UsageData(
+        five_hour=_parse_tier(raw.get("five_hour")),
+        seven_day=_parse_tier(raw.get("seven_day")),
+        seven_day_sonnet=_parse_tier(raw.get("seven_day_sonnet")),
+        fetched_at=datetime.now(timezone.utc),
+    )
+
+
+class OAuthClient:
+    """Manages Claude Code OAuth tokens and fetches usage data."""
+
+    def __init__(self):
+        self._access_token: Optional[str] = None
+        self._refresh_token: Optional[str] = None
+        self._expires_at: float = 0
+        self._lock = threading.Lock()
+        self._load_credentials()
+
+    @property
+    def has_credentials(self) -> bool:
+        return self._refresh_token is not None
+
+    def _load_credentials(self):
+        if not os.path.exists(CREDENTIALS_PATH):
+            return
+        try:
+            with open(CREDENTIALS_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            oauth = data.get("claudeAiOauth", {})
+            self._access_token = oauth.get("accessToken")
+            self._refresh_token = oauth.get("refreshToken")
+            expires_at = oauth.get("expiresAt", 0)
+            self._expires_at = expires_at / 1000.0 if expires_at > 1e12 else expires_at
+        except Exception:
+            pass
+
+    def _save_credentials(self):
+        try:
+            # Read existing file to preserve other keys
+            existing = {}
+            if os.path.exists(CREDENTIALS_PATH):
+                with open(CREDENTIALS_PATH, "r", encoding="utf-8") as f:
+                    existing = json.load(f)
+
+            existing["claudeAiOauth"] = {
+                "accessToken": self._access_token,
+                "refreshToken": self._refresh_token,
+                "expiresAt": int(self._expires_at * 1000),
+                "scopes": existing.get("claudeAiOauth", {}).get("scopes", []),
+                "subscriptionType": existing.get("claudeAiOauth", {}).get("subscriptionType", ""),
+                "rateLimitTier": existing.get("claudeAiOauth", {}).get("rateLimitTier", ""),
+            }
+
+            os.makedirs(os.path.dirname(CREDENTIALS_PATH), exist_ok=True)
+            with open(CREDENTIALS_PATH, "w", encoding="utf-8") as f:
+                json.dump(existing, f, indent=None, ensure_ascii=False)
+        except Exception:
+            pass
+
+    def _token_expired(self) -> bool:
+        return time.time() >= self._expires_at - 60  # 1 minute buffer
+
+    def _do_refresh(self) -> bool:
+        if not self._refresh_token:
+            return False
+        try:
+            payload = json.dumps({
+                "grant_type": "refresh_token",
+                "client_id": CLIENT_ID,
+                "refresh_token": self._refresh_token,
+            }).encode("utf-8")
+
+            req = Request(TOKEN_URL, data=payload, method="POST")
+            req.add_header("Content-Type", "application/json")
+            req.add_header("User-Agent", "claude-code/2.0.32")
+
+            with urlopen(req, timeout=15) as resp:
+                result = json.loads(resp.read().decode("utf-8"))
+
+            self._access_token = result["access_token"]
+            self._refresh_token = result.get("refresh_token", self._refresh_token)
+            expires_in = result.get("expires_in", 28800)
+            self._expires_at = time.time() + expires_in
+            self._save_credentials()
+            return True
+        except Exception:
+            return False
+
+    def _ensure_token(self) -> bool:
+        with self._lock:
+            if not self._access_token or self._token_expired():
+                return self._do_refresh()
+            return True
+
+    def fetch_usage(self) -> ApiResult:
+        if not self.has_credentials:
+            return ApiResult(success=False, data=None, error="no_credentials")
+
+        if not self._ensure_token():
+            return ApiResult(success=False, data=None, error="token_refresh_failed")
+
+        try:
+            req = Request(USAGE_URL)
+            req.add_header("Authorization", f"Bearer {self._access_token}")
+            req.add_header("anthropic-beta", "oauth-2025-04-20")
+
+            with urlopen(req, timeout=15) as resp:
+                raw = json.loads(resp.read().decode("utf-8"))
+            return ApiResult(success=True, data=_parse_usage(raw), error=None)
+        except HTTPError as e:
+            if e.code == 401:
+                # Token expired mid-flight, try refresh once
+                with self._lock:
+                    if self._do_refresh():
+                        try:
+                            req = Request(USAGE_URL)
+                            req.add_header("Authorization", f"Bearer {self._access_token}")
+                            req.add_header("anthropic-beta", "oauth-2025-04-20")
+                            with urlopen(req, timeout=15) as resp:
+                                raw = json.loads(resp.read().decode("utf-8"))
+                            return ApiResult(success=True, data=_parse_usage(raw), error=None)
+                        except Exception:
+                            pass
+                return ApiResult(success=False, data=None, error="auth_expired")
+            return ApiResult(success=False, data=None, error=f"http_{e.code}")
+        except URLError:
+            return ApiResult(success=False, data=None, error="network_error")
+        except Exception as e:
+            return ApiResult(success=False, data=None, error=str(e))
