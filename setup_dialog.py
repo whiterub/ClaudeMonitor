@@ -1,8 +1,17 @@
+import json
 import os
+import threading
+import webbrowser
+from urllib.request import Request, urlopen
+
 import customtkinter as ctk
 from PIL import Image
 from config import Config
 from api_client import OAuthClient
+from version import __version__
+
+GITHUB_REPO = "whiterub/ClaudeMonitor"
+RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
 ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
@@ -16,7 +25,7 @@ class SetupDialog(ctk.CTkToplevel):
         self.on_complete = on_complete
 
         self.title("ClaudeMonitor 설정")
-        self.geometry("400x510")
+        self.geometry("400x540")
         self.resizable(False, False)
         self.grab_set()
         self.attributes("-topmost", True)
@@ -209,7 +218,24 @@ class SetupDialog(ctk.CTkToplevel):
             fg_color="#45475a", hover_color="#585b70",
             font=("Segoe UI", 10), text_color="#cdd6f4",
             command=self._open_donate,
-        ).pack(pady=(0, 10))
+        ).pack(pady=(0, 4))
+
+        # Version & update section
+        ver_frame = ctk.CTkFrame(self, fg_color="transparent")
+        ver_frame.pack(pady=(0, 10), fill="x", padx=24)
+
+        ctk.CTkLabel(
+            ver_frame, text=f"v{__version__}",
+            font=("Segoe UI", 9), text_color="#6c7086",
+        ).pack(side="left")
+
+        self._update_btn = ctk.CTkButton(
+            ver_frame, text="업데이트 확인", width=90, height=22,
+            fg_color="transparent", hover_color="#45475a",
+            font=("Segoe UI", 9), text_color="#89b4fa",
+            command=self._check_update,
+        )
+        self._update_btn.pack(side="right")
 
     def _save(self):
         try:
@@ -320,6 +346,55 @@ class SetupDialog(ctk.CTkToplevel):
 
     def _open_donate(self):
         DonateDialog(self)
+
+    def _check_update(self):
+        self._update_btn.configure(state="disabled", text="확인 중...")
+        threading.Thread(target=self._do_check_update, daemon=True).start()
+
+    def _do_check_update(self):
+        try:
+            req = Request(RELEASES_API)
+            req.add_header("User-Agent", "ClaudeMonitor")
+            with urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            latest_tag = data.get("tag_name", "").lstrip("v")
+            html_url = data.get("html_url", "")
+
+            if latest_tag and self._is_newer(latest_tag, __version__):
+                self.after(0, lambda: self._show_update_available(latest_tag, html_url))
+            else:
+                self.after(0, lambda: self._show_up_to_date())
+        except Exception:
+            self.after(0, lambda: self._show_update_error())
+
+    @staticmethod
+    def _is_newer(remote: str, local: str) -> bool:
+        """Return True if remote version is strictly newer than local."""
+        try:
+            r = tuple(int(x) for x in remote.split("."))
+            l = tuple(int(x) for x in local.split("."))
+            return r > l
+        except (ValueError, AttributeError):
+            return False
+
+    def _show_update_available(self, version, url):
+        self._update_btn.configure(
+            state="normal", text=f"v{version} 다운로드",
+            text_color="#a6e3a1",
+            command=lambda: webbrowser.open(url),
+        )
+
+    def _show_up_to_date(self):
+        self._update_btn.configure(
+            state="normal", text="✓ 최신 버전",
+            text_color="#a6e3a1",
+        )
+
+    def _show_update_error(self):
+        self._update_btn.configure(
+            state="normal", text="확인 실패",
+            text_color="#f38ba8",
+        )
 
     def _on_close(self):
         self.destroy()
