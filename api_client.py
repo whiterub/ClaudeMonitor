@@ -21,6 +21,7 @@ USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
 AUTHORIZE_URL = "https://claude.ai/oauth/authorize"
 CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
 OAUTH_SCOPES = "org:create_api_key user:profile user:inference"
+PROFILE_URL = "https://api.anthropic.com/api/oauth/profile"
 
 
 @dataclass
@@ -80,6 +81,21 @@ class OAuthClient:
     @property
     def has_credentials(self) -> bool:
         return self._refresh_token is not None
+
+    def logout(self):
+        """Clear stored credentials."""
+        self._access_token = None
+        self._refresh_token = None
+        self._expires_at = 0
+        try:
+            if os.path.exists(CREDENTIALS_PATH):
+                with open(CREDENTIALS_PATH, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                data.pop("claudeAiOauth", None)
+                with open(CREDENTIALS_PATH, "w", encoding="utf-8") as f:
+                    json.dump(data, f, indent=None, ensure_ascii=False)
+        except Exception:
+            pass
 
     def _load_credentials(self):
         if not os.path.exists(CREDENTIALS_PATH):
@@ -189,6 +205,22 @@ class OAuthClient:
         except Exception as e:
             return ApiResult(success=False, data=None, error=str(e))
 
+    def fetch_profile(self) -> Optional[dict]:
+        """Fetch user profile. Returns dict with 'name', 'email' etc., or None."""
+        if not self.has_credentials:
+            return None
+        if not self._ensure_token():
+            return None
+        try:
+            req = Request(PROFILE_URL)
+            req.add_header("Authorization", f"Bearer {self._access_token}")
+            req.add_header("User-Agent", "claude-code/2.0.32")
+            req.add_header("anthropic-beta", "oauth-2025-04-20")
+            with urlopen(req, timeout=10) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except Exception:
+            return None
+
     # --- OAuth Login Flow ---
     def start_login(self, on_complete: Callable[[bool, str], None]):
         """Start OAuth login flow in background thread.
@@ -244,8 +276,8 @@ class OAuthClient:
                 on_complete(False, "인증 시간 초과 또는 취소됨")
                 return
 
-            # 6. Exchange code for tokens
-            payload = json.dumps({
+            # 6. Exchange code for tokens (form-encoded per OAuth 2.0 spec)
+            payload = urlencode({
                 "code": auth_code,
                 "grant_type": "authorization_code",
                 "client_id": CLIENT_ID,
@@ -254,7 +286,7 @@ class OAuthClient:
             }).encode("utf-8")
 
             req = Request(TOKEN_URL, data=payload, method="POST")
-            req.add_header("Content-Type", "application/json")
+            req.add_header("Content-Type", "application/x-www-form-urlencoded")
             req.add_header("User-Agent", "claude-code/2.0.32")
 
             with urlopen(req, timeout=15) as resp:

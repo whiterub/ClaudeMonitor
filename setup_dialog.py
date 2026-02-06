@@ -43,28 +43,35 @@ class SetupDialog(ctk.CTkToplevel):
             font=("Segoe UI", 16, "bold"), text_color="#cdd6f4"
         ).pack(pady=(20, 8))
 
-        # Token status + login button
+        # Token status + login/logout button
         auth_frame = ctk.CTkFrame(self, fg_color="transparent")
         auth_frame.pack(pady=(0, 8), padx=24, fill="x")
 
-        client = self._parent._client if hasattr(self._parent, '_client') else OAuthClient()
-        if client and client.has_credentials:
-            ctk.CTkLabel(
-                auth_frame, text="● 인증됨",
-                font=("Segoe UI", 11), text_color="#a6e3a1"
-            ).pack(side="left")
-        else:
-            ctk.CTkLabel(
-                auth_frame, text="● 미인증",
-                font=("Segoe UI", 11), text_color="#f38ba8"
-            ).pack(side="left")
+        self._client_ref = self._parent._client if hasattr(self._parent, '_client') else OAuthClient()
+        self._is_authenticated = bool(self._client_ref and self._client_ref.has_credentials)
 
-        self._login_btn = ctk.CTkButton(
-            auth_frame, text="Claude 로그인", width=110, height=28,
-            fg_color="#89b4fa", hover_color="#74c7ec",
-            font=("Segoe UI", 10, "bold"), text_color="#1e1e2e",
-            command=self._start_login,
+        self._auth_indicator = ctk.CTkLabel(
+            auth_frame,
+            text="● 인증됨" if self._is_authenticated else "● 미인증",
+            font=("Segoe UI", 11),
+            text_color="#a6e3a1" if self._is_authenticated else "#f38ba8"
         )
+        self._auth_indicator.pack(side="left")
+
+        if self._is_authenticated:
+            self._login_btn = ctk.CTkButton(
+                auth_frame, text="로그아웃", width=90, height=28,
+                fg_color="#45475a", hover_color="#585b70",
+                font=("Segoe UI", 10, "bold"), text_color="#cdd6f4",
+                command=self._do_logout,
+            )
+        else:
+            self._login_btn = ctk.CTkButton(
+                auth_frame, text="Claude 로그인", width=110, height=28,
+                fg_color="#89b4fa", hover_color="#74c7ec",
+                font=("Segoe UI", 10, "bold"), text_color="#1e1e2e",
+                command=self._start_login,
+            )
         self._login_btn.pack(side="right")
 
         self._auth_status = ctk.CTkLabel(
@@ -262,20 +269,50 @@ class SetupDialog(ctk.CTkToplevel):
         self._login_btn.configure(state="disabled", text="인증 중...")
         self._auth_status.configure(text="브라우저에서 로그인해주세요...", text_color="#f9e2af")
 
-        client = self._parent._client if hasattr(self._parent, '_client') else OAuthClient()
-        if client:
-            client.start_login(lambda ok, msg: self.after(0, lambda: self._on_login_done(ok, msg)))
+        if self._client_ref:
+            self._client_ref.start_login(lambda ok, msg: self.after(0, lambda: self._on_login_done(ok, msg)))
 
     def _on_login_done(self, success: bool, message: str):
         if success:
             self._auth_status.configure(text="✓ " + message, text_color="#a6e3a1")
-            self._login_btn.configure(text="로그인 완료", state="disabled")
+            self._auth_indicator.configure(text="● 인증됨", text_color="#a6e3a1")
+            # Switch to logout button
+            auth_frame = self._auth_indicator.master
+            self._login_btn.destroy()
+            self._login_btn = ctk.CTkButton(
+                auth_frame, text="로그아웃", width=90, height=28,
+                fg_color="#45475a", hover_color="#585b70",
+                font=("Segoe UI", 10, "bold"), text_color="#cdd6f4",
+                command=self._do_logout,
+            )
+            self._login_btn.pack(side="right")
             # Trigger refresh
             if hasattr(self._parent, '_manual_refresh'):
                 self._parent._manual_refresh()
         else:
             self._auth_status.configure(text=message, text_color="#f38ba8")
             self._login_btn.configure(state="normal", text="Claude 로그인")
+
+    def _do_logout(self):
+        if self._client_ref:
+            self._client_ref.logout()
+        self._auth_indicator.configure(text="● 미인증", text_color="#f38ba8")
+        self._auth_status.configure(text="로그아웃됨", text_color="#a6adc8")
+        # Reset username in widget
+        if hasattr(self._parent, '_username'):
+            self._parent._username = None
+            if hasattr(self._parent, '_update_title'):
+                self._parent._title_label.configure(text=" ✦ Claude")
+        # Switch to login button
+        self._login_btn.destroy()
+        self._login_btn = ctk.CTkButton(
+            self._auth_indicator.master,
+            text="Claude 로그인", width=110, height=28,
+            fg_color="#89b4fa", hover_color="#74c7ec",
+            font=("Segoe UI", 10, "bold"), text_color="#1e1e2e",
+            command=self._start_login,
+        )
+        self._login_btn.pack(side="right")
 
     def _open_donate(self):
         DonateDialog(self)

@@ -49,6 +49,8 @@ class ClaudeViewWidget(ctk.CTk):
         self._setup_callback = None
         self._tray = None
         self._client: OAuthClient | None = None
+        self._username: str | None = None
+        self._title_label = None
 
         # Frameless, always on top, tool window (skip Alt+Tab)
         self.overrideredirect(True)
@@ -122,11 +124,12 @@ class ClaudeViewWidget(ctk.CTk):
         title_frame.pack(fill="x", padx=0, pady=0)
         title_frame.pack_propagate(False)
 
-        title_label = ctk.CTkLabel(
-            title_frame, text=" ✦ Claude", font=("Segoe UI", p["title_font"], "bold"),
+        title_text = f" ✦ {self._username}" if self._username else " ✦ Claude"
+        self._title_label = ctk.CTkLabel(
+            title_frame, text=title_text, font=("Segoe UI", p["title_font"], "bold"),
             text_color="#cdd6f4", anchor="w"
         )
-        title_label.pack(side="left", fill="x", expand=True)
+        self._title_label.pack(side="left", fill="x", expand=True)
 
         close_btn = ctk.CTkButton(
             title_frame, text="✕", width=p["title_btn_w"], height=p["title_btn_h"],
@@ -334,6 +337,19 @@ class ClaudeViewWidget(ctk.CTk):
         self.after(interval_ms, self._do_refresh)
 
     def _fetch_in_background(self):
+        # Fetch username on first successful call
+        if self._username is None and self._client:
+            profile = self._client.fetch_profile()
+            if profile:
+                account = profile.get("account", {})
+                name = (
+                    account.get("display_name")
+                    or account.get("full_name")
+                    or account.get("email", "").split("@")[0]
+                )
+                if name:
+                    self._username = name
+                    self.after(0, self._update_title)
         result = self._client.fetch_usage()
         self.after(0, lambda: self._on_fetch_complete(result))
 
@@ -398,6 +414,11 @@ class ClaudeViewWidget(ctk.CTk):
     def _open_settings(self):
         if self._setup_callback:
             self._setup_callback()
+
+    def _update_title(self):
+        """Update title bar with username."""
+        if self._title_label and self._username:
+            self._title_label.configure(text=f" ✦ {self._username}")
 
     def _open_donate(self):
         from setup_dialog import DonateDialog
