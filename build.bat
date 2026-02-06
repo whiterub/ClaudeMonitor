@@ -1,12 +1,17 @@
 @echo off
 echo Installing dependencies...
 pip install -r requirements.txt
-pip install pyinstaller
+pip install nuitka zstandard ordered-set
 
-echo Building ClaudeMonitor...
-pyinstaller --onefile --windowed --icon=assets\icon.ico ^
-    --add-data "assets;assets" ^
-    --name ClaudeMonitor ^
+echo Building ClaudeMonitor with Nuitka...
+python -m nuitka --standalone --onefile ^
+    --windows-console-mode=disable ^
+    --enable-plugin=tk-inter ^
+    --include-data-dir=assets=assets ^
+    --output-filename=ClaudeMonitor.exe ^
+    --output-dir=dist ^
+    --assume-yes-for-downloads ^
+    --mingw64 ^
     main.py
 
 echo.
