@@ -217,6 +217,8 @@ class ClaudeViewWidget(ctk.CTk):
         menu.add_command(label="지금 새로고침", command=self._manual_refresh)
         menu.add_command(label="설정", command=self._open_settings)
         menu.add_separator()
+        menu.add_command(label="☕ 후원하기", command=self._open_donate)
+        menu.add_separator()
         menu.add_command(label="종료", command=self._quit_app)
         return menu
 
@@ -356,6 +358,10 @@ class ClaudeViewWidget(ctk.CTk):
     def _open_settings(self):
         if self._setup_callback:
             self._setup_callback()
+
+    def _open_donate(self):
+        import webbrowser
+        webbrowser.open("https://github.com/sponsors/whiterub")
 
     def _quit_app(self):
         if self._tray:

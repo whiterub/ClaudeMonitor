@@ -83,6 +83,7 @@ class TrayManager:
             pystray.MenuItem("지금 새로고침", self._refresh_now),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("설정", self._open_settings),
+            pystray.MenuItem("☕ 후원하기", self._open_donate),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("종료", self._exit),
         )
@@ -113,6 +114,10 @@ class TrayManager:
 
     def _open_settings(self):
         self.widget.after(0, self.widget._open_settings)
+
+    def _open_donate(self):
+        import webbrowser
+        webbrowser.open("https://github.com/sponsors/whiterub")
 
     def _exit(self):
         self.stop()

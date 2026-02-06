@@ -192,13 +192,14 @@ class SetupDialog(ctk.CTkToplevel):
         if self.on_complete:
             self.on_complete()
 
-        # If visibility changed, rebuild the widget UI
+        # If visibility changed, close dialog first then rebuild widget
         if visibility_changed:
+            self.destroy()
             self._parent.rebuild_ui()
-        else:
-            # Just apply opacity
-            self._parent.attributes("-alpha", opacity)
+            return
 
+        # Just apply opacity
+        self._parent.attributes("-alpha", opacity)
         self.status_label.configure(text="저장됨", text_color="#a6e3a1")
 
     def _on_close(self):
