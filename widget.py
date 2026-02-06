@@ -29,10 +29,10 @@ class ClaudeViewWidget(ctk.CTk):
         ctk.set_default_color_theme("blue")
 
         # Window size
-        self.WIDTH = 300
-        self.ROW_HEIGHT = 46  # height per usage row (compact)
-        self.TITLE_HEIGHT = 30
-        self.STATUS_HEIGHT = 28
+        self.WIDTH = 200
+        self.ROW_HEIGHT = 38  # height per usage row (compact)
+        self.TITLE_HEIGHT = 24
+        self.STATUS_HEIGHT = 22
         self.PADDING = 8
         self.HEIGHT = self._calc_height()
 
@@ -81,35 +81,35 @@ class ClaudeViewWidget(ctk.CTk):
 
     def _build_ui(self):
         # Title bar
-        title_frame = ctk.CTkFrame(self, fg_color="#16162a", height=30, corner_radius=0)
+        title_frame = ctk.CTkFrame(self, fg_color="#16162a", height=24, corner_radius=0)
         title_frame.pack(fill="x", padx=0, pady=0)
         title_frame.pack_propagate(False)
 
         title_label = ctk.CTkLabel(
-            title_frame, text="  ✦ ClaudeMonitor", font=("Segoe UI", 12, "bold"),
+            title_frame, text=" ✦ Claude", font=("Segoe UI", 10, "bold"),
             text_color="#cdd6f4", anchor="w"
         )
         title_label.pack(side="left", fill="x", expand=True)
 
         close_btn = ctk.CTkButton(
-            title_frame, text="✕", width=30, height=26,
+            title_frame, text="✕", width=24, height=20,
             fg_color="transparent", hover_color="#e74c3c",
-            font=("Segoe UI", 13), text_color="#cdd6f4",
+            font=("Segoe UI", 11), text_color="#cdd6f4",
             command=self._minimize_to_tray,
         )
-        close_btn.pack(side="right", padx=(0, 2))
+        close_btn.pack(side="right", padx=(0, 1))
 
         settings_btn = ctk.CTkButton(
-            title_frame, text="⚙", width=30, height=26,
+            title_frame, text="⚙", width=24, height=20,
             fg_color="transparent", hover_color="#45475a",
-            font=("Segoe UI", 13), text_color="#cdd6f4",
+            font=("Segoe UI", 11), text_color="#cdd6f4",
             command=self._open_settings,
         )
         settings_btn.pack(side="right")
 
         # Content area
         content = ctk.CTkFrame(self, fg_color="#1e1e2e")
-        content.pack(fill="both", expand=True, padx=8, pady=(4, 2))
+        content.pack(fill="both", expand=True, padx=6, pady=(3, 2))
 
         # Usage rows (dynamic based on config) with inline checkboxes
         self.row_five_hour = None
@@ -127,58 +127,58 @@ class ClaudeViewWidget(ctk.CTk):
                 content, "Sonnet", "show_sonnet")
 
         # Status bar
-        status_frame = ctk.CTkFrame(self, fg_color="#16162a", height=28, corner_radius=0)
+        status_frame = ctk.CTkFrame(self, fg_color="#16162a", height=22, corner_radius=0)
         status_frame.pack(fill="x", padx=0, pady=0)
         status_frame.pack_propagate(False)
 
         self.status_label = ctk.CTkLabel(
-            status_frame, text="  대기 중...", font=("Segoe UI", 9),
+            status_frame, text=" 대기 중...", font=("Segoe UI", 8),
             text_color="#6c7086", anchor="w"
         )
         self.status_label.pack(side="left", fill="x", expand=True)
 
         refresh_btn = ctk.CTkButton(
-            status_frame, text="↻", width=28, height=20,
+            status_frame, text="↻", width=22, height=18,
             fg_color="transparent", hover_color="#45475a",
-            font=("Segoe UI", 12), text_color="#6c7086",
+            font=("Segoe UI", 10), text_color="#6c7086",
             command=self._manual_refresh,
         )
-        refresh_btn.pack(side="right", padx=(0, 4))
+        refresh_btn.pack(side="right", padx=(0, 2))
 
     def _create_usage_row(self, parent, label_text: str, config_key: str) -> dict:
         frame = ctk.CTkFrame(parent, fg_color="transparent")
         frame.pack(fill="x", pady=(1, 0))
 
-        # Top line: checkbox-label + timer + percentage
+        # Top line: checkbox-label + percentage
         top = ctk.CTkFrame(frame, fg_color="transparent")
         top.pack(fill="x")
 
         chk_var = ctk.BooleanVar(value=True)
         chk = ctk.CTkCheckBox(
             top, text=label_text, variable=chk_var,
-            font=("Segoe UI", 10), text_color="#bac2de",
+            font=("Segoe UI", 9), text_color="#bac2de",
             fg_color="#89b4fa", hover_color="#74c7ec",
             border_color="#45475a", checkmark_color="#1e1e2e",
-            width=20, height=16, checkbox_width=14, checkbox_height=14,
+            width=18, height=14, checkbox_width=12, checkbox_height=12,
             command=lambda: self._on_row_toggle(config_key, chk_var),
         )
         chk.pack(side="left")
 
         pct_label = ctk.CTkLabel(
-            top, text="—%", font=("Segoe UI", 10, "bold"),
+            top, text="—%", font=("Segoe UI", 9, "bold"),
             text_color="#cdd6f4", anchor="e"
         )
         pct_label.pack(side="right")
 
         timer_label = ctk.CTkLabel(
-            top, text="", font=("Segoe UI", 9),
+            top, text="", font=("Segoe UI", 8),
             text_color="#7f849c", anchor="e"
         )
-        timer_label.pack(side="right", padx=(0, 6))
+        timer_label.pack(side="right", padx=(0, 4))
 
         # Progress bar (compact)
         progress = ctk.CTkProgressBar(
-            frame, height=8, corner_radius=4,
+            frame, height=6, corner_radius=3,
             fg_color="#313244", progress_color="#2ecc71"
         )
         progress.pack(fill="x", pady=(1, 0))
@@ -262,7 +262,7 @@ class ClaudeViewWidget(ctk.CTk):
             row_widgets["timer_label"].configure(text=format_countdown(tier.resets_at))
 
     def update_status(self, text: str):
-        self.status_label.configure(text=f"  {text}")
+        self.status_label.configure(text=f" {text}")
 
     def tick_countdowns(self):
         if self._last_data:
