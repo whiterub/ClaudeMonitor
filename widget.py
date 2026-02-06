@@ -8,6 +8,37 @@ from config import Config
 from utils import get_usage_color, format_countdown
 
 
+UI_PRESETS = {
+    "small": {
+        "width": 170, "row_height": 32, "title_height": 20, "status_height": 18,
+        "padding": 6, "content_padx": 4, "content_pady": (2, 1),
+        "title_font": 8, "title_btn_w": 20, "title_btn_h": 16, "title_btn_font": 9,
+        "chk_font": 8, "chk_w": 16, "chk_h": 12, "chk_box": 10,
+        "pct_font": 8, "timer_font": 7,
+        "bar_height": 4, "bar_radius": 2,
+        "status_font": 7, "refresh_btn_w": 18, "refresh_btn_h": 14, "refresh_font": 8,
+    },
+    "medium": {
+        "width": 200, "row_height": 38, "title_height": 24, "status_height": 22,
+        "padding": 8, "content_padx": 6, "content_pady": (3, 2),
+        "title_font": 10, "title_btn_w": 24, "title_btn_h": 20, "title_btn_font": 11,
+        "chk_font": 9, "chk_w": 18, "chk_h": 14, "chk_box": 12,
+        "pct_font": 9, "timer_font": 8,
+        "bar_height": 6, "bar_radius": 3,
+        "status_font": 8, "refresh_btn_w": 22, "refresh_btn_h": 18, "refresh_font": 10,
+    },
+    "large": {
+        "width": 260, "row_height": 50, "title_height": 30, "status_height": 26,
+        "padding": 10, "content_padx": 8, "content_pady": (4, 3),
+        "title_font": 12, "title_btn_w": 30, "title_btn_h": 24, "title_btn_font": 13,
+        "chk_font": 11, "chk_w": 22, "chk_h": 18, "chk_box": 14,
+        "pct_font": 11, "timer_font": 10,
+        "bar_height": 8, "bar_radius": 4,
+        "status_font": 9, "refresh_btn_w": 26, "refresh_btn_h": 20, "refresh_font": 12,
+    },
+}
+
+
 class ClaudeViewWidget(ctk.CTk):
     def __init__(self, config: Config):
         super().__init__()
@@ -28,12 +59,8 @@ class ClaudeViewWidget(ctk.CTk):
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
 
-        # Window size
-        self.WIDTH = 200
-        self.ROW_HEIGHT = 38  # height per usage row (compact)
-        self.TITLE_HEIGHT = 24
-        self.STATUS_HEIGHT = 22
-        self.PADDING = 8
+        # Window size from preset
+        self._apply_size_preset()
         self.HEIGHT = self._calc_height()
 
         # Position
@@ -53,6 +80,15 @@ class ClaudeViewWidget(ctk.CTk):
         # Right-click menu
         self._context_menu = self._build_context_menu()
         self.bind("<ButtonPress-3>", self._show_context_menu)
+
+    def _apply_size_preset(self):
+        p = UI_PRESETS.get(self.config.ui_size, UI_PRESETS["medium"])
+        self._p = p
+        self.WIDTH = p["width"]
+        self.ROW_HEIGHT = p["row_height"]
+        self.TITLE_HEIGHT = p["title_height"]
+        self.STATUS_HEIGHT = p["status_height"]
+        self.PADDING = p["padding"]
 
     def _calc_height(self) -> int:
         visible = sum([
@@ -80,36 +116,37 @@ class ClaudeViewWidget(ctk.CTk):
         self.geometry(f"{self.WIDTH}x{self.HEIGHT}+{x}+{y}")
 
     def _build_ui(self):
+        p = self._p
         # Title bar
-        title_frame = ctk.CTkFrame(self, fg_color="#16162a", height=24, corner_radius=0)
+        title_frame = ctk.CTkFrame(self, fg_color="#16162a", height=p["title_height"], corner_radius=0)
         title_frame.pack(fill="x", padx=0, pady=0)
         title_frame.pack_propagate(False)
 
         title_label = ctk.CTkLabel(
-            title_frame, text=" ✦ Claude", font=("Segoe UI", 10, "bold"),
+            title_frame, text=" ✦ Claude", font=("Segoe UI", p["title_font"], "bold"),
             text_color="#cdd6f4", anchor="w"
         )
         title_label.pack(side="left", fill="x", expand=True)
 
         close_btn = ctk.CTkButton(
-            title_frame, text="✕", width=24, height=20,
+            title_frame, text="✕", width=p["title_btn_w"], height=p["title_btn_h"],
             fg_color="transparent", hover_color="#e74c3c",
-            font=("Segoe UI", 11), text_color="#cdd6f4",
+            font=("Segoe UI", p["title_btn_font"]), text_color="#cdd6f4",
             command=self._minimize_to_tray,
         )
         close_btn.pack(side="right", padx=(0, 1))
 
         settings_btn = ctk.CTkButton(
-            title_frame, text="⚙", width=24, height=20,
+            title_frame, text="⚙", width=p["title_btn_w"], height=p["title_btn_h"],
             fg_color="transparent", hover_color="#45475a",
-            font=("Segoe UI", 11), text_color="#cdd6f4",
+            font=("Segoe UI", p["title_btn_font"]), text_color="#cdd6f4",
             command=self._open_settings,
         )
         settings_btn.pack(side="right")
 
         # Content area
         content = ctk.CTkFrame(self, fg_color="#1e1e2e")
-        content.pack(fill="both", expand=True, padx=6, pady=(3, 2))
+        content.pack(fill="both", expand=True, padx=p["content_padx"], pady=p["content_pady"])
 
         # Usage rows (dynamic based on config) with inline checkboxes
         self.row_five_hour = None
@@ -127,25 +164,26 @@ class ClaudeViewWidget(ctk.CTk):
                 content, "Sonnet", "show_sonnet")
 
         # Status bar
-        status_frame = ctk.CTkFrame(self, fg_color="#16162a", height=22, corner_radius=0)
+        status_frame = ctk.CTkFrame(self, fg_color="#16162a", height=p["status_height"], corner_radius=0)
         status_frame.pack(fill="x", padx=0, pady=0)
         status_frame.pack_propagate(False)
 
         self.status_label = ctk.CTkLabel(
-            status_frame, text=" 대기 중...", font=("Segoe UI", 8),
+            status_frame, text=" 대기 중...", font=("Segoe UI", p["status_font"]),
             text_color="#6c7086", anchor="w"
         )
         self.status_label.pack(side="left", fill="x", expand=True)
 
         refresh_btn = ctk.CTkButton(
-            status_frame, text="↻", width=22, height=18,
+            status_frame, text="↻", width=p["refresh_btn_w"], height=p["refresh_btn_h"],
             fg_color="transparent", hover_color="#45475a",
-            font=("Segoe UI", 10), text_color="#6c7086",
+            font=("Segoe UI", p["refresh_font"]), text_color="#6c7086",
             command=self._manual_refresh,
         )
         refresh_btn.pack(side="right", padx=(0, 2))
 
     def _create_usage_row(self, parent, label_text: str, config_key: str) -> dict:
+        p = self._p
         frame = ctk.CTkFrame(parent, fg_color="transparent")
         frame.pack(fill="x", pady=(1, 0))
 
@@ -156,29 +194,30 @@ class ClaudeViewWidget(ctk.CTk):
         chk_var = ctk.BooleanVar(value=True)
         chk = ctk.CTkCheckBox(
             top, text=label_text, variable=chk_var,
-            font=("Segoe UI", 9), text_color="#bac2de",
+            font=("Segoe UI", p["chk_font"]), text_color="#bac2de",
             fg_color="#89b4fa", hover_color="#74c7ec",
             border_color="#45475a", checkmark_color="#1e1e2e",
-            width=18, height=14, checkbox_width=12, checkbox_height=12,
+            width=p["chk_w"], height=p["chk_h"],
+            checkbox_width=p["chk_box"], checkbox_height=p["chk_box"],
             command=lambda: self._on_row_toggle(config_key, chk_var),
         )
         chk.pack(side="left")
 
         pct_label = ctk.CTkLabel(
-            top, text="—%", font=("Segoe UI", 9, "bold"),
+            top, text="—%", font=("Segoe UI", p["pct_font"], "bold"),
             text_color="#cdd6f4", anchor="e"
         )
         pct_label.pack(side="right")
 
         timer_label = ctk.CTkLabel(
-            top, text="", font=("Segoe UI", 8),
+            top, text="", font=("Segoe UI", p["timer_font"]),
             text_color="#7f849c", anchor="e"
         )
         timer_label.pack(side="right", padx=(0, 4))
 
         # Progress bar (compact)
         progress = ctk.CTkProgressBar(
-            frame, height=6, corner_radius=3,
+            frame, height=p["bar_height"], corner_radius=p["bar_radius"],
             fg_color="#313244", progress_color="#2ecc71"
         )
         progress.pack(fill="x", pady=(1, 0))
@@ -326,7 +365,8 @@ class ClaudeViewWidget(ctk.CTk):
         for child in self.winfo_children():
             child.destroy()
 
-        # Recalculate height
+        # Re-apply size preset and recalculate
+        self._apply_size_preset()
         self.HEIGHT = self._calc_height()
 
         # Reposition with new height

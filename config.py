@@ -17,6 +17,7 @@ class Config:
     show_five_hour: bool = True
     show_seven_day: bool = True
     show_sonnet: bool = True
+    ui_size: str = "medium"  # small, medium, large
 
     @staticmethod
     def load() -> "Config":
@@ -33,6 +34,7 @@ class Config:
                 show_five_hour=data.get("show_five_hour", True),
                 show_seven_day=data.get("show_seven_day", True),
                 show_sonnet=data.get("show_sonnet", True),
+                ui_size=data.get("ui_size", "medium"),
             )
         except Exception:
             return Config()

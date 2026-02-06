@@ -16,7 +16,7 @@ class SetupDialog(ctk.CTkToplevel):
         self.on_complete = on_complete
 
         self.title("ClaudeMonitor 설정")
-        self.geometry("400x420")
+        self.geometry("400x480")
         self.resizable(False, False)
         self.grab_set()
         self.attributes("-topmost", True)
@@ -98,9 +98,32 @@ class SetupDialog(ctk.CTkToplevel):
         settings_frame = ctk.CTkFrame(self, fg_color="#16162a", corner_radius=8)
         settings_frame.pack(pady=(0, 8), padx=24, fill="x")
 
+        # UI Size
+        size_frame = ctk.CTkFrame(settings_frame, fg_color="transparent")
+        size_frame.pack(pady=(10, 4), padx=16, fill="x")
+
+        ctk.CTkLabel(
+            size_frame, text="위젯 크기:",
+            font=("Segoe UI", 11), text_color="#bac2de"
+        ).pack(side="left")
+
+        size_map = {"small": "소", "medium": "중", "large": "대"}
+        current_label = size_map.get(self.config.ui_size, "중")
+        self.size_var = ctk.StringVar(value=current_label)
+        self.size_menu = ctk.CTkSegmentedButton(
+            size_frame, values=["소", "중", "대"],
+            variable=self.size_var,
+            font=("Segoe UI", 10),
+            selected_color="#89b4fa", selected_hover_color="#74c7ec",
+            unselected_color="#313244", unselected_hover_color="#45475a",
+            text_color="#1e1e2e", text_color_disabled="#6c7086",
+            width=120, height=26,
+        )
+        self.size_menu.pack(side="right")
+
         # Refresh interval
         interval_frame = ctk.CTkFrame(settings_frame, fg_color="transparent")
-        interval_frame.pack(pady=(10, 4), padx=16, fill="x")
+        interval_frame.pack(pady=(4, 4), padx=16, fill="x")
 
         ctk.CTkLabel(
             interval_frame, text="갱신 주기 (초):",
@@ -138,11 +161,11 @@ class SetupDialog(ctk.CTkToplevel):
         self.status_label = ctk.CTkLabel(
             self, text="", font=("Segoe UI", 10), text_color="#a6adc8"
         )
-        self.status_label.pack(pady=(0, 6))
+        self.status_label.pack(pady=(0, 4))
 
         # Buttons
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")
-        btn_frame.pack(pady=(0, 12))
+        btn_frame.pack(pady=(0, 4))
 
         ctk.CTkButton(
             btn_frame, text="저장", width=100,
@@ -157,6 +180,14 @@ class SetupDialog(ctk.CTkToplevel):
             font=("Segoe UI", 11), text_color="#6c7086",
             command=self._on_close,
         ).pack(side="left", padx=8)
+
+        # Donate button
+        ctk.CTkButton(
+            self, text="☕ 후원하기", width=120, height=28,
+            fg_color="#45475a", hover_color="#585b70",
+            font=("Segoe UI", 10), text_color="#cdd6f4",
+            command=self._open_donate,
+        ).pack(pady=(0, 10))
 
     def _save(self):
         try:
@@ -179,11 +210,16 @@ class SetupDialog(ctk.CTkToplevel):
             self.status_label.configure(text="최소 1개 항목을 선택하세요", text_color="#f38ba8")
             return
 
-        # Check if visibility changed
-        visibility_changed = (
+        # Size mapping
+        size_label_map = {"소": "small", "중": "medium", "대": "large"}
+        new_size = size_label_map.get(self.size_var.get(), "medium")
+
+        # Check if rebuild needed
+        needs_rebuild = (
             self.config.show_five_hour != show_five or
             self.config.show_seven_day != show_seven or
-            self.config.show_sonnet != show_sonnet
+            self.config.show_sonnet != show_sonnet or
+            self.config.ui_size != new_size
         )
 
         self.config.refresh_interval_seconds = interval
@@ -191,13 +227,14 @@ class SetupDialog(ctk.CTkToplevel):
         self.config.show_five_hour = show_five
         self.config.show_seven_day = show_seven
         self.config.show_sonnet = show_sonnet
+        self.config.ui_size = new_size
         self.config.save()
 
         if self.on_complete:
             self.on_complete()
 
-        # If visibility changed, close dialog first then rebuild widget
-        if visibility_changed:
+        # If layout changed, close dialog first then rebuild widget
+        if needs_rebuild:
             self.destroy()
             self._parent.rebuild_ui()
             return
@@ -205,6 +242,9 @@ class SetupDialog(ctk.CTkToplevel):
         # Just apply opacity
         self._parent.attributes("-alpha", opacity)
         self.status_label.configure(text="저장됨", text_color="#a6e3a1")
+
+    def _open_donate(self):
+        DonateDialog(self)
 
     def _on_close(self):
         self.destroy()
