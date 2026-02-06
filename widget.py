@@ -30,10 +30,10 @@ class ClaudeViewWidget(ctk.CTk):
 
         # Window size
         self.WIDTH = 300
-        self.ROW_HEIGHT = 70  # height per usage row
+        self.ROW_HEIGHT = 46  # height per usage row (compact)
         self.TITLE_HEIGHT = 30
         self.STATUS_HEIGHT = 28
-        self.PADDING = 10
+        self.PADDING = 8
         self.HEIGHT = self._calc_height()
 
         # Position
@@ -109,19 +109,22 @@ class ClaudeViewWidget(ctk.CTk):
 
         # Content area
         content = ctk.CTkFrame(self, fg_color="#1e1e2e")
-        content.pack(fill="both", expand=True, padx=8, pady=(6, 4))
+        content.pack(fill="both", expand=True, padx=8, pady=(4, 2))
 
-        # Usage rows (dynamic based on config)
+        # Usage rows (dynamic based on config) with inline checkboxes
         self.row_five_hour = None
         self.row_seven_day = None
         self.row_sonnet = None
 
         if self.config.show_five_hour:
-            self.row_five_hour = self._create_usage_row(content, "5시간 세션")
+            self.row_five_hour = self._create_usage_row(
+                content, "5h", "show_five_hour")
         if self.config.show_seven_day:
-            self.row_seven_day = self._create_usage_row(content, "주간 전체")
+            self.row_seven_day = self._create_usage_row(
+                content, "7d", "show_seven_day")
         if self.config.show_sonnet:
-            self.row_sonnet = self._create_usage_row(content, "Sonnet 주간")
+            self.row_sonnet = self._create_usage_row(
+                content, "Sonnet", "show_sonnet")
 
         # Status bar
         status_frame = ctk.CTkFrame(self, fg_color="#16162a", height=28, corner_radius=0)
@@ -142,46 +145,69 @@ class ClaudeViewWidget(ctk.CTk):
         )
         refresh_btn.pack(side="right", padx=(0, 4))
 
-    def _create_usage_row(self, parent, label_text: str) -> dict:
+    def _create_usage_row(self, parent, label_text: str, config_key: str) -> dict:
         frame = ctk.CTkFrame(parent, fg_color="transparent")
-        frame.pack(fill="x", pady=(2, 0))
+        frame.pack(fill="x", pady=(1, 0))
 
-        # Top line: label + percentage
+        # Top line: checkbox-label + timer + percentage
         top = ctk.CTkFrame(frame, fg_color="transparent")
         top.pack(fill="x")
 
-        label = ctk.CTkLabel(
-            top, text=label_text, font=("Segoe UI", 11),
-            text_color="#bac2de", anchor="w"
+        chk_var = ctk.BooleanVar(value=True)
+        chk = ctk.CTkCheckBox(
+            top, text=label_text, variable=chk_var,
+            font=("Segoe UI", 10), text_color="#bac2de",
+            fg_color="#89b4fa", hover_color="#74c7ec",
+            border_color="#45475a", checkmark_color="#1e1e2e",
+            width=20, height=16, checkbox_width=14, checkbox_height=14,
+            command=lambda: self._on_row_toggle(config_key, chk_var),
         )
-        label.pack(side="left")
+        chk.pack(side="left")
 
         pct_label = ctk.CTkLabel(
-            top, text="—%", font=("Segoe UI", 11, "bold"),
+            top, text="—%", font=("Segoe UI", 10, "bold"),
             text_color="#cdd6f4", anchor="e"
         )
         pct_label.pack(side="right")
 
-        # Progress bar
+        timer_label = ctk.CTkLabel(
+            top, text="", font=("Segoe UI", 9),
+            text_color="#7f849c", anchor="e"
+        )
+        timer_label.pack(side="right", padx=(0, 6))
+
+        # Progress bar (compact)
         progress = ctk.CTkProgressBar(
-            frame, height=12, corner_radius=6,
+            frame, height=8, corner_radius=4,
             fg_color="#313244", progress_color="#2ecc71"
         )
-        progress.pack(fill="x", pady=(2, 0))
+        progress.pack(fill="x", pady=(1, 0))
         progress.set(0)
 
-        # Countdown timer
-        timer_label = ctk.CTkLabel(
-            frame, text="—", font=("Segoe UI", 10),
-            text_color="#7f849c", anchor="w"
-        )
-        timer_label.pack(fill="x")
-
         return {
+            "frame": frame,
             "progress": progress,
             "pct_label": pct_label,
             "timer_label": timer_label,
         }
+
+    def _on_row_toggle(self, config_key: str, var: ctk.BooleanVar):
+        """Handle checkbox toggle on a usage row."""
+        value = var.get()
+        # Prevent unchecking all
+        visible = sum([
+            self.config.show_five_hour,
+            self.config.show_seven_day,
+            self.config.show_sonnet,
+        ])
+        if not value and visible <= 1:
+            var.set(True)  # revert
+            return
+
+        setattr(self.config, config_key, value)
+        self.config.save()
+        # Rebuild after short delay so checkbox animation finishes
+        self.after(150, self.rebuild_ui)
 
     def _build_context_menu(self):
         import tkinter as tk
