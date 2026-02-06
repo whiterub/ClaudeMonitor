@@ -200,10 +200,13 @@ class OAuthClient:
 
     def _login_flow(self, on_complete: Callable[[bool, str], None]):
         try:
-            # 1. Generate PKCE
+            # 1. Generate PKCE code_verifier and code_challenge
             verifier = base64.urlsafe_b64encode(os.urandom(32)).rstrip(b"=").decode()
             digest = hashlib.sha256(verifier.encode()).digest()
             challenge = base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
+
+            # Separate state parameter for CSRF protection
+            state = secrets.token_urlsafe(32)
 
             # 2. Start local callback server
             server, port = self._start_callback_server()
@@ -212,14 +215,13 @@ class OAuthClient:
 
             # 3. Build authorization URL
             params = {
-                "code": "true",
                 "client_id": CLIENT_ID,
                 "response_type": "code",
                 "redirect_uri": redirect_uri,
                 "scope": OAUTH_SCOPES,
                 "code_challenge": challenge,
                 "code_challenge_method": "S256",
-                "state": verifier,
+                "state": state,
             }
             auth_url = f"{AUTHORIZE_URL}?{urlencode(params)}"
 
@@ -227,8 +229,14 @@ class OAuthClient:
             webbrowser.open(auth_url)
 
             # 5. Wait for callback (timeout 120s)
-            server.timeout = 120
-            server.handle_request()
+            # Handle multiple requests (browser may send favicon, etc.)
+            server.auth_code = None
+            deadline = time.time() + 120
+            while time.time() < deadline:
+                server.timeout = max(1, deadline - time.time())
+                server.handle_request()
+                if getattr(server, "auth_code", None):
+                    break
             server.server_close()
 
             auth_code = getattr(server, "auth_code", None)
@@ -259,24 +267,40 @@ class OAuthClient:
             self._save_credentials()
 
             on_complete(True, "로그인 성공!")
+        except HTTPError as e:
+            body = ""
+            try:
+                body = e.read().decode("utf-8", errors="replace")
+            except Exception:
+                pass
+            on_complete(False, f"로그인 실패: HTTP {e.code} - {body[:200]}")
         except Exception as e:
             on_complete(False, f"로그인 실패: {e}")
 
     def _start_callback_server(self):
         class Handler(http.server.BaseHTTPRequestHandler):
             def do_GET(self):
-                query = parse_qs(urlparse(self.path).query)
-                self.server.auth_code = query.get("code", [None])[0]
-                self.send_response(200)
-                self.send_header("Content-Type", "text/html; charset=utf-8")
-                self.end_headers()
-                self.wfile.write(
-                    "<html><body style='font-family:sans-serif;text-align:center;"
-                    "padding:60px;background:#1e1e2e;color:#cdd6f4'>"
-                    "<h2>✦ 인증 완료!</h2>"
-                    "<p>이 탭을 닫아도 됩니다.</p>"
-                    "</body></html>".encode("utf-8")
-                )
+                parsed = urlparse(self.path)
+                # Only process /callback path
+                if parsed.path == "/callback":
+                    query = parse_qs(parsed.query)
+                    code = query.get("code", [None])[0]
+                    if code:
+                        self.server.auth_code = code
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/html; charset=utf-8")
+                    self.end_headers()
+                    self.wfile.write(
+                        "<html><body style='font-family:sans-serif;text-align:center;"
+                        "padding:60px;background:#1e1e2e;color:#cdd6f4'>"
+                        "<h2>✦ 인증 완료!</h2>"
+                        "<p>이 탭을 닫아도 됩니다.</p>"
+                        "</body></html>".encode("utf-8")
+                    )
+                else:
+                    # Ignore favicon and other requests
+                    self.send_response(204)
+                    self.end_headers()
 
             def log_message(self, format, *args):
                 pass  # suppress logs
