@@ -1,10 +1,16 @@
+import base64
+import hashlib
+import http.server
 import json
 import os
+import secrets
 import threading
 import time
+import webbrowser
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Callable
+from urllib.parse import urlencode, urlparse, parse_qs
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
@@ -12,7 +18,9 @@ from urllib.error import HTTPError, URLError
 CREDENTIALS_PATH = os.path.join(os.path.expanduser("~"), ".claude", ".credentials.json")
 TOKEN_URL = "https://console.anthropic.com/v1/oauth/token"
 USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
+AUTHORIZE_URL = "https://claude.ai/oauth/authorize"
 CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
+OAUTH_SCOPES = "org:create_api_key user:profile user:inference"
 
 
 @dataclass
@@ -180,3 +188,99 @@ class OAuthClient:
             return ApiResult(success=False, data=None, error="network_error")
         except Exception as e:
             return ApiResult(success=False, data=None, error=str(e))
+
+    # --- OAuth Login Flow ---
+    def start_login(self, on_complete: Callable[[bool, str], None]):
+        """Start OAuth login flow in background thread.
+        on_complete(success: bool, message: str) called on completion."""
+        thread = threading.Thread(
+            target=self._login_flow, args=(on_complete,), daemon=True
+        )
+        thread.start()
+
+    def _login_flow(self, on_complete: Callable[[bool, str], None]):
+        try:
+            # 1. Generate PKCE
+            verifier = base64.urlsafe_b64encode(os.urandom(32)).rstrip(b"=").decode()
+            digest = hashlib.sha256(verifier.encode()).digest()
+            challenge = base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
+
+            # 2. Start local callback server
+            server, port = self._start_callback_server()
+
+            redirect_uri = f"http://localhost:{port}/callback"
+
+            # 3. Build authorization URL
+            params = {
+                "code": "true",
+                "client_id": CLIENT_ID,
+                "response_type": "code",
+                "redirect_uri": redirect_uri,
+                "scope": OAUTH_SCOPES,
+                "code_challenge": challenge,
+                "code_challenge_method": "S256",
+                "state": verifier,
+            }
+            auth_url = f"{AUTHORIZE_URL}?{urlencode(params)}"
+
+            # 4. Open browser
+            webbrowser.open(auth_url)
+
+            # 5. Wait for callback (timeout 120s)
+            server.timeout = 120
+            server.handle_request()
+            server.server_close()
+
+            auth_code = getattr(server, "auth_code", None)
+            if not auth_code:
+                on_complete(False, "인증 시간 초과 또는 취소됨")
+                return
+
+            # 6. Exchange code for tokens
+            payload = json.dumps({
+                "code": auth_code,
+                "grant_type": "authorization_code",
+                "client_id": CLIENT_ID,
+                "redirect_uri": redirect_uri,
+                "code_verifier": verifier,
+            }).encode("utf-8")
+
+            req = Request(TOKEN_URL, data=payload, method="POST")
+            req.add_header("Content-Type", "application/json")
+            req.add_header("User-Agent", "claude-code/2.0.32")
+
+            with urlopen(req, timeout=15) as resp:
+                result = json.loads(resp.read().decode("utf-8"))
+
+            self._access_token = result["access_token"]
+            self._refresh_token = result.get("refresh_token")
+            expires_in = result.get("expires_in", 28800)
+            self._expires_at = time.time() + expires_in
+            self._save_credentials()
+
+            on_complete(True, "로그인 성공!")
+        except Exception as e:
+            on_complete(False, f"로그인 실패: {e}")
+
+    def _start_callback_server(self):
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                query = parse_qs(urlparse(self.path).query)
+                self.server.auth_code = query.get("code", [None])[0]
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(
+                    "<html><body style='font-family:sans-serif;text-align:center;"
+                    "padding:60px;background:#1e1e2e;color:#cdd6f4'>"
+                    "<h2>✦ 인증 완료!</h2>"
+                    "<p>이 탭을 닫아도 됩니다.</p>"
+                    "</body></html>".encode("utf-8")
+                )
+
+            def log_message(self, format, *args):
+                pass  # suppress logs
+
+        server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+        port = server.server_address[1]
+        return server, port

@@ -16,7 +16,7 @@ class SetupDialog(ctk.CTkToplevel):
         self.on_complete = on_complete
 
         self.title("ClaudeMonitor 설정")
-        self.geometry("400x480")
+        self.geometry("400x510")
         self.resizable(False, False)
         self.grab_set()
         self.attributes("-topmost", True)
@@ -43,19 +43,34 @@ class SetupDialog(ctk.CTkToplevel):
             font=("Segoe UI", 16, "bold"), text_color="#cdd6f4"
         ).pack(pady=(20, 8))
 
-        # Token status
-        client = OAuthClient()
-        if client.has_credentials:
-            status_text = "Claude Code 인증: 연결됨"
-            status_color = "#a6e3a1"
-        else:
-            status_text = "Claude Code 인증: 없음 (터미널에서 claude login 실행)"
-            status_color = "#f38ba8"
+        # Token status + login button
+        auth_frame = ctk.CTkFrame(self, fg_color="transparent")
+        auth_frame.pack(pady=(0, 8), padx=24, fill="x")
 
-        ctk.CTkLabel(
-            self, text=status_text,
-            font=("Segoe UI", 11), text_color=status_color
-        ).pack(pady=(0, 12))
+        client = self._parent._client if hasattr(self._parent, '_client') else OAuthClient()
+        if client and client.has_credentials:
+            ctk.CTkLabel(
+                auth_frame, text="● 인증됨",
+                font=("Segoe UI", 11), text_color="#a6e3a1"
+            ).pack(side="left")
+        else:
+            ctk.CTkLabel(
+                auth_frame, text="● 미인증",
+                font=("Segoe UI", 11), text_color="#f38ba8"
+            ).pack(side="left")
+
+        self._login_btn = ctk.CTkButton(
+            auth_frame, text="Claude 로그인", width=110, height=28,
+            fg_color="#89b4fa", hover_color="#74c7ec",
+            font=("Segoe UI", 10, "bold"), text_color="#1e1e2e",
+            command=self._start_login,
+        )
+        self._login_btn.pack(side="right")
+
+        self._auth_status = ctk.CTkLabel(
+            self, text="", font=("Segoe UI", 9), text_color="#a6adc8"
+        )
+        self._auth_status.pack(pady=(0, 4))
 
         # --- Display items section ---
         display_frame = ctk.CTkFrame(self, fg_color="#16162a", corner_radius=8)
@@ -242,6 +257,25 @@ class SetupDialog(ctk.CTkToplevel):
         # Just apply opacity
         self._parent.attributes("-alpha", opacity)
         self.status_label.configure(text="저장됨", text_color="#a6e3a1")
+
+    def _start_login(self):
+        self._login_btn.configure(state="disabled", text="인증 중...")
+        self._auth_status.configure(text="브라우저에서 로그인해주세요...", text_color="#f9e2af")
+
+        client = self._parent._client if hasattr(self._parent, '_client') else OAuthClient()
+        if client:
+            client.start_login(lambda ok, msg: self.after(0, lambda: self._on_login_done(ok, msg)))
+
+    def _on_login_done(self, success: bool, message: str):
+        if success:
+            self._auth_status.configure(text="✓ " + message, text_color="#a6e3a1")
+            self._login_btn.configure(text="로그인 완료", state="disabled")
+            # Trigger refresh
+            if hasattr(self._parent, '_manual_refresh'):
+                self._parent._manual_refresh()
+        else:
+            self._auth_status.configure(text=message, text_color="#f38ba8")
+            self._login_btn.configure(state="normal", text="Claude 로그인")
 
     def _open_donate(self):
         DonateDialog(self)
