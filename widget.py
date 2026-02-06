@@ -86,7 +86,7 @@ class ClaudeViewWidget(ctk.CTk):
         title_frame.pack_propagate(False)
 
         title_label = ctk.CTkLabel(
-            title_frame, text="  ✦ ClaudeView", font=("Segoe UI", 12, "bold"),
+            title_frame, text="  ✦ ClaudeMonitor", font=("Segoe UI", 12, "bold"),
             text_color="#cdd6f4", anchor="w"
         )
         title_label.pack(side="left", fill="x", expand=True)

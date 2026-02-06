@@ -11,7 +11,7 @@ class SetupDialog(ctk.CTkToplevel):
         self.config = config
         self.on_complete = on_complete
 
-        self.title("ClaudeView 설정")
+        self.title("ClaudeMonitor 설정")
         self.geometry("400x420")
         self.resizable(False, False)
         self.grab_set()
@@ -35,7 +35,7 @@ class SetupDialog(ctk.CTkToplevel):
     def _build_ui(self):
         # Title
         ctk.CTkLabel(
-            self, text="ClaudeView 설정",
+            self, text="ClaudeMonitor 설정",
             font=("Segoe UI", 16, "bold"), text_color="#cdd6f4"
         ).pack(pady=(20, 8))
 

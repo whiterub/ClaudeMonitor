@@ -86,7 +86,7 @@ class TrayManager:
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("종료", self._exit),
         )
-        self.icon = pystray.Icon("ClaudeView", image, "ClaudeView", menu)
+        self.icon = pystray.Icon("ClaudeMonitor", image, "ClaudeMonitor", menu)
 
         thread = threading.Thread(target=self.icon.run, daemon=True)
         thread.start()

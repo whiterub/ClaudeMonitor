@@ -4,7 +4,7 @@ from dataclasses import dataclass, asdict
 from typing import Tuple
 
 
-CONFIG_DIR = os.path.join(os.getenv("APPDATA", ""), "ClaudeView")
+CONFIG_DIR = os.path.join(os.getenv("APPDATA", ""), "ClaudeMonitor")
 CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
 
 
