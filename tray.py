@@ -116,8 +116,7 @@ class TrayManager:
         self.widget.after(0, self.widget._open_settings)
 
     def _open_donate(self):
-        import webbrowser
-        webbrowser.open("https://github.com/sponsors/whiterub")
+        self.widget.after(0, self.widget._open_donate)
 
     def _exit(self):
         self.stop()

@@ -360,8 +360,8 @@ class ClaudeViewWidget(ctk.CTk):
             self._setup_callback()
 
     def _open_donate(self):
-        import webbrowser
-        webbrowser.open("https://github.com/sponsors/whiterub")
+        from setup_dialog import DonateDialog
+        DonateDialog(self)
 
     def _quit_app(self):
         if self._tray:

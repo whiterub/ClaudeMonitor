@@ -1,6 +1,10 @@
+import os
 import customtkinter as ctk
+from PIL import Image
 from config import Config
 from api_client import OAuthClient
+
+ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
 
 class SetupDialog(ctk.CTkToplevel):
@@ -204,3 +208,65 @@ class SetupDialog(ctk.CTkToplevel):
 
     def _on_close(self):
         self.destroy()
+
+
+class DonateDialog(ctk.CTkToplevel):
+    def __init__(self, parent):
+        super().__init__(parent)
+
+        self.title("☕ 후원하기")
+        self.resizable(False, False)
+        self.grab_set()
+        self.attributes("-topmost", True)
+        self.configure(fg_color="#1e1e2e")
+
+        self._build_ui()
+
+        # Center on screen
+        self.update_idletasks()
+        w = self.winfo_width()
+        h = self.winfo_height()
+        x = (self.winfo_screenwidth() // 2) - (w // 2)
+        y = (self.winfo_screenheight() // 2) - (h // 2)
+        self.geometry(f"+{x}+{y}")
+
+        self.protocol("WM_DELETE_WINDOW", self.destroy)
+        self.lift()
+        self.focus_force()
+
+    def _build_ui(self):
+        ctk.CTkLabel(
+            self, text="☕ 커피 한 잔 후원하기",
+            font=("Segoe UI", 14, "bold"), text_color="#cdd6f4"
+        ).pack(pady=(16, 4))
+
+        ctk.CTkLabel(
+            self, text="카카오페이로 스캔해주세요",
+            font=("Segoe UI", 10), text_color="#a6adc8"
+        ).pack(pady=(0, 8))
+
+        # QR image
+        qr_path = os.path.join(ASSETS_DIR, "donate_qr.png")
+        if os.path.exists(qr_path):
+            pil_img = Image.open(qr_path)
+            # Scale to fit dialog (max 250px wide)
+            ratio = min(250 / pil_img.width, 350 / pil_img.height)
+            new_w = int(pil_img.width * ratio)
+            new_h = int(pil_img.height * ratio)
+            self._qr_image = ctk.CTkImage(
+                light_image=pil_img, dark_image=pil_img,
+                size=(new_w, new_h)
+            )
+            ctk.CTkLabel(self, image=self._qr_image, text="").pack(pady=(0, 8))
+        else:
+            ctk.CTkLabel(
+                self, text="QR 이미지 없음",
+                font=("Segoe UI", 11), text_color="#f38ba8"
+            ).pack(pady=(20, 20))
+
+        ctk.CTkButton(
+            self, text="닫기", width=80,
+            fg_color="transparent", hover_color="#45475a",
+            font=("Segoe UI", 11), text_color="#6c7086",
+            command=self.destroy,
+        ).pack(pady=(0, 12))
