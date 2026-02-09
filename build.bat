@@ -11,7 +11,12 @@ python -m nuitka --standalone --onefile ^
     --output-filename=ClaudeMonitor.exe ^
     --output-dir=dist ^
     --assume-yes-for-downloads ^
-    --mingw64 ^
+    --msvc=latest ^
+    --company-name=ClaudeMonitor ^
+    --product-name=ClaudeMonitor ^
+    --file-version=1.0.1 ^
+    --file-description="Claude AI Usage Monitor" ^
+    --copyright="MIT License" ^
     main.py
 
 echo.
