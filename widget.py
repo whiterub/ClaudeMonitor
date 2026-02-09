@@ -52,10 +52,13 @@ class ClaudeViewWidget(ctk.CTk):
         self._username: str | None = None
         self._title_label = None
 
-        # Frameless, always on top, tool window (skip Alt+Tab)
+        # Frameless, always on top, tool window (skip Alt+Tab & taskbar)
         self.overrideredirect(True)
         self.attributes("-topmost", True)
         self.attributes("-alpha", self.config.opacity)
+
+        # Hide from taskbar using Windows tool window style
+        self.after(10, self._hide_from_taskbar)
 
         # Dark theme
         ctk.set_appearance_mode("dark")
@@ -82,6 +85,20 @@ class ClaudeViewWidget(ctk.CTk):
         # Right-click menu
         self._context_menu = self._build_context_menu()
         self.bind("<ButtonPress-3>", self._show_context_menu)
+
+    def _hide_from_taskbar(self):
+        """Hide window from taskbar using Win32 API (WS_EX_TOOLWINDOW)."""
+        import ctypes
+        GWL_EXSTYLE = -20
+        WS_EX_TOOLWINDOW = 0x00000080
+        WS_EX_APPWINDOW = 0x00040000
+        hwnd = ctypes.windll.user32.GetParent(self.winfo_id())
+        style = ctypes.windll.user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
+        style = (style | WS_EX_TOOLWINDOW) & ~WS_EX_APPWINDOW
+        ctypes.windll.user32.SetWindowLongW(hwnd, GWL_EXSTYLE, style)
+        # Re-show to apply style change
+        self.withdraw()
+        self.after(50, self.deiconify)
 
     def _apply_size_preset(self):
         p = UI_PRESETS.get(self.config.ui_size, UI_PRESETS["medium"])
@@ -399,6 +416,9 @@ class ClaudeViewWidget(ctk.CTk):
 
         # Re-create context menu
         self._context_menu = self._build_context_menu()
+
+        # Re-apply taskbar hiding
+        self._hide_from_taskbar()
 
         # Apply opacity
         self.attributes("-alpha", self.config.opacity)
