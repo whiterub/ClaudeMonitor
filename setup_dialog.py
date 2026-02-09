@@ -147,7 +147,8 @@ class SetupDialog(ctk.CTkToplevel):
             font=("Segoe UI", 10),
             selected_color="#89b4fa", selected_hover_color="#74c7ec",
             unselected_color="#313244", unselected_hover_color="#45475a",
-            text_color="#1e1e2e", text_color_disabled="#6c7086",
+            text_color="#cdd6f4",
+            text_color_disabled="#6c7086",
             width=120, height=26,
         )
         self.size_menu.pack(side="right")
@@ -207,8 +208,8 @@ class SetupDialog(ctk.CTkToplevel):
 
         ctk.CTkButton(
             btn_frame, text="닫기", width=80,
-            fg_color="transparent", hover_color="#45475a",
-            font=("Segoe UI", 11), text_color="#6c7086",
+            fg_color="#45475a", hover_color="#585b70",
+            font=("Segoe UI", 11), text_color="#cdd6f4",
             command=self._on_close,
         ).pack(side="left", padx=8)
 

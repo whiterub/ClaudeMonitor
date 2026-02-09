@@ -14,7 +14,7 @@ python -m nuitka --standalone --onefile ^
     --msvc=latest ^
     --company-name=ClaudeMonitor ^
     --product-name=ClaudeMonitor ^
-    --file-version=1.0.1 ^
+    --file-version=1.0.2 ^
     --file-description="Claude AI Usage Monitor" ^
     --copyright="MIT License" ^
     main.py

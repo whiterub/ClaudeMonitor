@@ -10,15 +10,6 @@ from utils import get_usage_color, format_countdown
 
 UI_PRESETS = {
     "small": {
-        "width": 170, "row_height": 32, "title_height": 20, "status_height": 18,
-        "padding": 6, "content_padx": 4, "content_pady": (2, 1),
-        "title_font": 8, "title_btn_w": 20, "title_btn_h": 16, "title_btn_font": 9,
-        "chk_font": 8, "chk_w": 16, "chk_h": 12, "chk_box": 10,
-        "pct_font": 8, "timer_font": 7,
-        "bar_height": 4, "bar_radius": 2,
-        "status_font": 7, "refresh_btn_w": 18, "refresh_btn_h": 14, "refresh_font": 8,
-    },
-    "medium": {
         "width": 200, "row_height": 38, "title_height": 24, "status_height": 22,
         "padding": 8, "content_padx": 6, "content_pady": (3, 2),
         "title_font": 10, "title_btn_w": 24, "title_btn_h": 20, "title_btn_font": 11,
@@ -27,7 +18,7 @@ UI_PRESETS = {
         "bar_height": 6, "bar_radius": 3,
         "status_font": 8, "refresh_btn_w": 22, "refresh_btn_h": 18, "refresh_font": 10,
     },
-    "large": {
+    "medium": {
         "width": 260, "row_height": 50, "title_height": 30, "status_height": 26,
         "padding": 10, "content_padx": 8, "content_pady": (4, 3),
         "title_font": 12, "title_btn_w": 30, "title_btn_h": 24, "title_btn_font": 13,
@@ -35,6 +26,15 @@ UI_PRESETS = {
         "pct_font": 11, "timer_font": 10,
         "bar_height": 8, "bar_radius": 4,
         "status_font": 9, "refresh_btn_w": 26, "refresh_btn_h": 20, "refresh_font": 12,
+    },
+    "large": {
+        "width": 320, "row_height": 62, "title_height": 36, "status_height": 30,
+        "padding": 12, "content_padx": 10, "content_pady": (5, 4),
+        "title_font": 14, "title_btn_w": 36, "title_btn_h": 28, "title_btn_font": 15,
+        "chk_font": 13, "chk_w": 26, "chk_h": 22, "chk_box": 16,
+        "pct_font": 13, "timer_font": 12,
+        "bar_height": 10, "bar_radius": 5,
+        "status_font": 11, "refresh_btn_w": 30, "refresh_btn_h": 24, "refresh_font": 14,
     },
 }
 
