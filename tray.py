@@ -4,57 +4,69 @@ from PIL import Image, ImageDraw
 
 
 def _create_default_icon() -> Image.Image:
-    """Create a Claude-style icon with sparkle mark."""
+    """Create a ClaudeMonitor-style icon with gauge/meter design."""
+    import math
+
     # Render at 4x for anti-aliasing
     scale = 4
     size = 64 * scale  # 256
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    # Rounded rectangle background with Claude-like warm gradient
-    # Base: warm beige-orange (#D4A574)
-    pad = 4 * scale
-    radius = 14 * scale
+    # Dark rounded rectangle background (#1e1e2e)
+    pad = int(size * 0.06)
+    radius = int(size * 0.22)
     draw.rounded_rectangle(
         [pad, pad, size - pad, size - pad],
         radius=radius,
-        fill="#D4A574",
+        fill="#1e1e2e",
+    )
+    draw.rounded_rectangle(
+        [pad, pad, size - pad, size - pad],
+        radius=radius,
+        outline="#313244",
+        width=max(1, int(size * 0.01)),
     )
 
-    # Add subtle darker inner shadow at bottom
-    for i in range(8 * scale):
-        alpha = int(30 * (1 - i / (8 * scale)))
-        y_off = size - pad - i
-        draw.line(
-            [(pad + radius, y_off), (size - pad - radius, y_off)],
-            fill=(140, 90, 50, alpha),
-        )
-
-    # Add lighter highlight at top
-    for i in range(6 * scale):
-        alpha = int(40 * (1 - i / (6 * scale)))
-        y_off = pad + i
-        draw.line(
-            [(pad + radius, y_off), (size - pad - radius, y_off)],
-            fill=(255, 230, 200, alpha),
-        )
-
-    # Draw Claude sparkle (✦) - a 4-pointed star
     cx, cy = size // 2, size // 2
-    star_r = 18 * scale  # outer radius
-    star_inner = 5 * scale  # inner radius
 
-    # 4-pointed star vertices
-    import math
-    points = []
-    for i in range(8):
-        angle = math.radians(i * 45 - 90)  # start from top
-        r = star_r if i % 2 == 0 else star_inner
-        px = cx + r * math.cos(angle)
-        py = cy + r * math.sin(angle)
-        points.append((px, py))
+    # Circular gauge arc (background track)
+    gauge_r = int(size * 0.28)
+    track_width = max(2, int(size * 0.06))
+    bbox = [cx - gauge_r, cy - gauge_r, cx + gauge_r, cy + gauge_r]
+    draw.arc(bbox, start=135, end=405, fill="#45475a", width=track_width)
 
-    draw.polygon(points, fill="white")
+    # Filled portion (~70% in orange accent)
+    fill_end = 135 + int(270 * 0.70)
+    draw.arc(bbox, start=135, end=fill_end, fill="#e8a04a", width=track_width)
+
+    # Dot at end of filled arc
+    end_angle = math.radians(fill_end)
+    dot_x = cx + gauge_r * math.cos(end_angle)
+    dot_y = cy + gauge_r * math.sin(end_angle)
+    dot_r = max(1, int(size * 0.025))
+    draw.ellipse(
+        [dot_x - dot_r, dot_y - dot_r, dot_x + dot_r, dot_y + dot_r],
+        fill="#e8a04a",
+    )
+
+    # Center: small bar chart (3 bars)
+    bar_w = max(1, int(size * 0.045))
+    bar_gap = max(1, int(size * 0.03))
+    bar_heights = [0.12, 0.18, 0.14]
+    total_w = len(bar_heights) * bar_w + (len(bar_heights) - 1) * bar_gap
+    bar_start_x = cx - total_w // 2
+    bar_base_y = cy + int(size * 0.08)
+
+    colors = ["#f5c542", "#e8a04a", "#d4783a"]
+    for i, (h_ratio, color) in enumerate(zip(bar_heights, colors)):
+        x = bar_start_x + i * (bar_w + bar_gap)
+        bar_h = int(size * h_ratio)
+        draw.rounded_rectangle(
+            [x, bar_base_y - bar_h, x + bar_w, bar_base_y],
+            radius=max(1, bar_w // 3),
+            fill=color,
+        )
 
     # Downscale with anti-aliasing
     img = img.resize((64, 64), Image.LANCZOS)

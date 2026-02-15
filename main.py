@@ -19,6 +19,17 @@ from api_client import OAuthClient
 
 
 def main():
+    # Single-instance enforcement using Windows Mutex
+    mutex_name = "ClaudeMonitor_SingleInstance_Mutex"
+    kernel32 = ctypes.windll.kernel32
+    mutex = kernel32.CreateMutexW(None, False, mutex_name)
+    last_error = kernel32.GetLastError()
+    ERROR_ALREADY_EXISTS = 183
+    if last_error == ERROR_ALREADY_EXISTS:
+        # Another instance is already running, exit silently
+        kernel32.CloseHandle(mutex)
+        sys.exit(0)
+
     config = Config.load()
 
     # Create OAuth client (reads ~/.claude/.credentials.json)

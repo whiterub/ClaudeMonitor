@@ -1,17 +1,22 @@
 @echo off
+echo === ClaudeMonitor Standalone Build (for MSIX packaging) ===
+echo.
+
 echo Installing dependencies...
 pip install -r requirements.txt
 pip install nuitka zstandard ordered-set
 
-echo Building ClaudeMonitor with Nuitka...
-python -m nuitka --standalone --onefile ^
+echo.
+echo Building ClaudeMonitor with Nuitka (standalone mode)...
+python -m nuitka --standalone ^
     --windows-console-mode=disable ^
     --enable-plugin=tk-inter ^
     --include-data-dir=assets=assets ^
     --output-filename=ClaudeMonitor.exe ^
     --output-dir=dist ^
     --assume-yes-for-downloads ^
-    --msvc=latest ^
+    --mingw64 ^
+    --windows-icon-from-ico=msix\Assets\icon.ico ^
     --company-name=ClaudeMonitor ^
     --product-name=ClaudeMonitor ^
     --file-version=1.0.3 ^
@@ -21,5 +26,6 @@ python -m nuitka --standalone --onefile ^
 
 echo.
 echo Build complete!
-echo Output: dist\ClaudeMonitor.exe
+echo Output directory: dist\main.dist\
+echo Run dist\main.dist\ClaudeMonitor.exe to test
 pause

@@ -7,3 +7,25 @@ build/
 *.spec
 .claude/
 *.exe
+
+# Build artifacts
+*.msix
+*.msixupload
+*.msixbundle
+*.appxsym
+msix_package/
+msix_verify/
+
+# Signing certificates (NEVER commit)
+*.pfx
+*.cer
+*.p12
+
+# Build/test logs
+makeappx_*.txt
+sign_*.txt
+wack_*.txt
+wack_*.xml
+WACKReport.xml
+nuitka-crash-report.xml
+nul
